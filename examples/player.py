@@ -1,4 +1,4 @@
-import pyaudio
+import sounddevice as sd
 import soundfile as sf
 import numpy as np
 from threading import Thread
@@ -15,64 +15,45 @@ class VbapPlayer():
     def __init__(self, filename, bufsize):
         assert('.wav' in filename)
         self.bufsize = bufsize
+        # TODO: channels have to be derived from a speaker setup
         self.channels = 2
         self._wf = sf.SoundFile(filename)
-        self._p = pyaudio.PyAudio()
-        self._stream = self._p.open(
-                format = pyaudio.paFloat32,
-                channels = self.channels,
-                rate = self._wf.samplerate,
-                frames_per_buffer = self.bufsize,
-                output = True)
-
+        assert(self._wf.channels == 1)
+        self._stream = sd.Stream(channels=2, blocksize=bufsize,
+                                 callback=self._audio_callback)
         self._keep_playing = False
         self.volume = 1
         self.angle = 0
         self.bounds = [-30, 30]
 
-        # hardcoded stereo speaker setup
+        # hardcoded stereo speaker setup TODO: implement passing setups
         self.spkrs = [30, -30]
-        self.bases = list()
-        for a in self.spkrs:
+        _set_base_vectors(self.spkrs)
+
+    def _set_base_vectors(self, spkr_angles):
+        for a in spkr_angles:
             ang = pyvbap.DEG_2_RAD * a
             self.bases.append(pyvbap.comp_vec_for_angle(ang))
         self.bases = np.asarray(self.bases).T
 
-        # get one initial frame
-        self.get_next_frame()
-
-    def get_next_frame(self):
-        self._frame = self._wf.read(self.bufsize)
-        if len(self._frame) != self.bufsize:
+    def _audio_callback(self, indata, outdata, frames, time, status):
+        # get new samples from file and loop around at the end of the file
+        buf = self._wf.read(self.bufsize)
+        if (len(buf) < self.bufsize):
             self._wf.seek(0)
-            self._frame = self._wf.read(self.bufsize)
-        self._frame *= self.volume
+            buf = np.concatenate([buf, self._wf.read(self.bufsize - len(buf))])
 
-    def _do_play(self):
-        while self._keep_playing:
-            # apply panning
-            frame = self._frame.astype(np.float32)
-            data = pyvbap.pan_2d(self.angle, frame, self.spkrs, self.bases)
-            print(data[:10])
-            interleaved = self._interleave_samples(data)
-            print(interleaved[:20])
-            self._stream.write(interleaved.tostring())
-            self.get_next_frame()
+        out = pyvbap.pan_2d(self.angle, buf, self.spkrs, self.bases)
 
-    def _interleave_samples(self, data):
-        print(data.shape[0])
-        out = np.empty((data.shape[0] * self.channels), dtype=data.dtype)
-        for i in range(self.channels):
-            out[i::2] = data[:, i]
-        return out
+        outdata[:] = out * self.volume
 
     def play(self):
         self._keep_playing = True
-        thread = Thread(target=self._do_play)
-        thread.start()
+        self._stream.start()
 
     def stop(self):
         self._keep_playing = False
+        self._stream.stop()
 
     def set_volume(self, vol):
         if vol < 0:
