@@ -28,7 +28,8 @@ class VbapPlayer():
 
         # hardcoded stereo speaker setup TODO: implement passing setups
         self.spkrs = [30, -30]
-        _set_base_vectors(self.spkrs)
+        self.bases = list()
+        self._set_base_vectors(self.spkrs)
 
     def _set_base_vectors(self, spkr_angles):
         for a in spkr_angles:
