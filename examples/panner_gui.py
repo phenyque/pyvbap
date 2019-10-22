@@ -1,7 +1,9 @@
 import tkinter as tk
-from tkinter import ttk
+from tkinter import filedialog
 from PIL import Image, ImageTk
 import numpy as np
+from threading import Thread
+from time import sleep
 
 from player import VbapPlayer
 
@@ -35,6 +37,7 @@ GUI_CONFIG = {
                 },
 
             'audio_bufsize': 1024,
+            'error_duration': 3,
         }
 
 
@@ -57,8 +60,9 @@ class PannerGui():
 
     def __init__(self):
         # set up audio player
-        self.player = VbapPlayer('noise_pulsed.wav', GUI_CONFIG['audio_bufsize'])
+        self.player = VbapPlayer(bufsize=GUI_CONFIG['audio_bufsize'])
         self.player.set_volume(0.1)
+        self.open_file = None
 
         # set up gui window
         self.root = tk.Tk()
@@ -99,7 +103,13 @@ class PannerGui():
         # bind space bar to play button
         space_bar_button_binding = lambda x: self._play_pause_callback()
         self.root.bind('<space>', space_bar_button_binding)
+        self.load_but = tk.Button(self.root, text='Load File',
+                                  command=self._load_callback)
+        self.load_but.grid(row=1, column=0, sticky='e')
 
+        # error display
+        self.error_display = tk.Label(self.root, text='', bg='white', fg='red')
+        self.error_display.grid(row=1, column=0, sticky='s')
 
         # line to cursor position
         self.cursor_line = None
@@ -133,13 +143,30 @@ class PannerGui():
             self.ls_widgets[angle] = self.bg.create_image(x, y, anchor=tk.CENTER, image=self._widgets['ls'])
 
 
+    def _load_callback(self):
+        f = filedialog.askopenfilename(filetypes=(('Wave audio files', '*.wav'),))
+        self.player.open_file(f)
+
+
     def _play_pause_callback(self):
         if self.player.is_playing:
             self.play_but.configure(image=self._widgets['play'])
             self.player.stop()
         else:
-            self.play_but.configure(image=self._widgets['stop'])
-            self.player.play()
+            if self.open_file is None:
+                msg = 'Open a file first!'
+                err_thread = Thread(target=self._display_error_msg, args=(msg,))
+                err_thread.start()
+            else:
+                self.play_but.configure(image=self._widgets['stop'])
+                self.player.play()
+
+
+    def _display_error_msg(self, msg):
+        msg = 'Error: {}'.format(msg)
+        self.error_display.configure(text=msg)
+        sleep(GUI_CONFIG['error_duration'])
+        self.error_display.configure(text='')
 
 
     def _slider_callback(self, angle):

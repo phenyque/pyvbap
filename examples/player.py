@@ -12,13 +12,10 @@ class VbapPlayer():
     it to a given angle using vbap
     """
 
-    def __init__(self, filename, bufsize):
-        assert('.wav' in filename)
+    def __init__(self, bufsize, filename=None):
         self.bufsize = bufsize
         # TODO: channels have to be derived from a speaker setup
         self.channels = 2
-        self._wf = sf.SoundFile(filename)
-        assert(self._wf.channels == 1)
         self._stream = sd.Stream(channels=2, blocksize=bufsize,
                                  callback=self._audio_callback)
         self.is_playing = False
@@ -26,10 +23,39 @@ class VbapPlayer():
         self.angle = 0
         self.bounds = [-30, 30]
 
+        if filename is not None:
+            self.open_file(filename)
+
         # hardcoded stereo speaker setup TODO: implement passing setups
         self.spkrs = [30, -30]
         self.bases = list()
         self._set_base_vectors(self.spkrs)
+
+    def open_file(self, filepath, seamless=False):
+        """
+        Open a new mono audio file at <filepath>
+
+        If the player is already playing, the new file starts immediately.
+        If seamless is True, than the playing of the next file starts at the
+        same file position were you stopped the last file. If the new file is
+        shorter, this will result in starting from the start of the file.
+        """
+        was_playing = self.is_playing
+        if was_playing:
+            self.stop()
+            if seamless:
+                play_pos = self._wf.tell()
+
+        tmp = sf.SoundFile(filepath)
+        if not tmp.channels == 1:
+            raise ValueError('Only mono signals can be used!')
+
+        self._wf = tmp
+        if seamless:
+            self._wf.seek(play_pos)
+        
+        if was_playing:
+            self.play()
 
     def _set_base_vectors(self, spkr_angles):
         for a in spkr_angles:
