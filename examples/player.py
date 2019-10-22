@@ -21,7 +21,7 @@ class VbapPlayer():
         assert(self._wf.channels == 1)
         self._stream = sd.Stream(channels=2, blocksize=bufsize,
                                  callback=self._audio_callback)
-        self._keep_playing = False
+        self.is_playing = False
         self.volume = 1
         self.angle = 0
         self.bounds = [-30, 30]
@@ -49,11 +49,11 @@ class VbapPlayer():
         outdata[:] = out * self.volume
 
     def play(self):
-        self._keep_playing = True
+        self.is_playing = True
         self._stream.start()
 
     def stop(self):
-        self._keep_playing = False
+        self.is_playing = False
         self._stream.stop()
 
     def set_volume(self, vol):

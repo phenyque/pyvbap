@@ -8,31 +8,34 @@ from player import VbapPlayer
 RAD_2_DEG = 180 / np.pi
 DEG_2_RAD = np.pi / 180
 COORD_TEMPLATE = 'x: {:.1f}, y: {:.1f}\nangle: {:.0f}, r: {:.1f}\nx_r: {:.1f}, y_r: {:.1f}'
+WIDTH = 600
+HEIGHT = 600
+R = 289
 
 GUI_CONFIG = {
-            'win_width': 600,
-            'win_height': 600,
-
-            'spkr_radius': 289,
+            'win_width': WIDTH,
+            'win_height': HEIGHT,
+            'spkr_radius': R,
+            'control_height': 100,
 
             'ls_image_path': 'graphics/loudspeaker_small.png',
             'ls_highlight_path': 'graphics/loudspeaker_small_highlight.png',
             'bg_image_path': 'graphics/bg.png',
             'sound_image_path': 'graphics/note.png',
             'line_colour': 'red',
+    
+            # dict containing graphic path and scaling size for all widgets
+            'widgets': {
+                    'ls': ['graphics/loudspeaker_small.png', None],
+                    'ls_highlight': ['graphics/loudspeaker_small_highlight.png', None],
+                    'bg': ['graphics/bg.png', (WIDTH, HEIGHT)],
+                    'sound': ['graphics/note.png', (30, 30)],
+                    'play': ['graphics/play.png', (50, 50)],
+                    'stop': ['graphics/stop.png', (50, 50)],
+                },
 
             'audio_bufsize': 1024,
         }
-
-WIDTH = 600
-HEIGHT = 600
-
-R = 289
-
-MAX_ANGLE = 30
-MIN_ANGLE = -30
-
-
 
 
 def _screen_to_polar(x, y, width, height):
@@ -50,49 +53,9 @@ def _polar_to_screen(angle, radius, width, height):
     return x + width // 2, -y + height // 2
 
 
-def resize_image(event):
-    new_width = event.width
-    new_height = event.height
-    image = copy_of_image.resize((new_width, new_height))
-    photo = ImageTk.PhotoImage(image)
-    label.config(image=photo)
-    label.image = photo
-
-
-def cursor_pos(event):
-    x, y = event.x, event.y
-    # compute angle in listener coordinates
-    angle, radius = _screen_to_polar(x,  y, GUI_CONFIG['win_width'], GUI_CONFIG['win_height'])
-    x_r, y_r = _polar_to_screen(angle, radius, GUI_CONFIG['win_width'], GUI_CONFIG['win_width'])
-    pos_text.set(COORD_TEMPLATE.format(x, y, angle, radius, x_r, y_r))
-
-
-def _on_closing():
-    player.stop()
-    root.destroy()
-
-
-def slider_callback(angle):
-
-    angle = int(angle)
-
-    # move sound indicator image on the canvas
-    x_curr, y_curr = _polar_to_screen(player.angle, GUI_CONFIG['spkr_radius'], GUI_CONFIG['win_width'], GUI_CONFIG['win_height'])
-    x_new, y_new = _polar_to_screen(angle, GUI_CONFIG['spkr_radius'], GUI_CONFIG['win_width'], GUI_CONFIG['win_height'])
-    x_rel = x_new - x_curr
-    y_rel = y_new - y_curr
-
-    window.move(sound_image_on_canvas, x_rel, y_rel)
-
-    # set angle for panning
-    player.set_angle(angle)
-
-
 class PannerGui():
 
     def __init__(self):
-
-
         # set up audio player
         self.player = VbapPlayer('noise_pulsed.wav', GUI_CONFIG['audio_bufsize'])
         self.player.set_volume(0.1)
@@ -100,25 +63,18 @@ class PannerGui():
         # set up gui window
         self.root = tk.Tk()
         self.root.title('VBAP Panner')
-        self.root.geometry('{}x{}'.format(GUI_CONFIG['win_width'], GUI_CONFIG['win_height']+50))
+        self.root.geometry('{}x{}'.format(GUI_CONFIG['win_width'], GUI_CONFIG['win_height']+GUI_CONFIG['control_height']))
         self.root.resizable(width=False, height=False)
         self.root.config(background='white')
         self.root.protocol('WM_DELETE_WINDOW', self._on_closing)
 
         self.x_mid, self.y_mid = _polar_to_screen(0, 0, GUI_CONFIG['win_width'], GUI_CONFIG['win_height'])
 
-        # widgets
+        # load widgets
         self._widgets = dict()
-
-        ls_img = Image.open(GUI_CONFIG['ls_image_path'])
-        self._widgets['ls'] = ImageTk.PhotoImage(ls_img)
-        ls_img_highlight = Image.open(GUI_CONFIG['ls_highlight_path'])
-        self._widgets['ls_highlight'] = ImageTk.PhotoImage(ls_img_highlight)
-        sound_img = Image.open(GUI_CONFIG['sound_image_path']).resize((30, 30))
-        self._widgets['sound'] = ImageTk.PhotoImage(sound_img)
-        bg_img = Image.open(GUI_CONFIG['bg_image_path']).resize((GUI_CONFIG['win_width'],
-                                                                 GUI_CONFIG['win_height']))
-        self._widgets['bg'] = ImageTk.PhotoImage(bg_img)
+        for widget in GUI_CONFIG['widgets']:
+            path, resize = GUI_CONFIG['widgets'][widget]
+            self.add_widget(path, widget, resize)
 
         # set window background
         self.bg = tk.Canvas(self.root, width=GUI_CONFIG['win_width'], height=GUI_CONFIG['win_height'])
@@ -137,19 +93,30 @@ class PannerGui():
         sound_pos_zero = _polar_to_screen(0, R, GUI_CONFIG['win_width'], GUI_CONFIG['win_height'])
         self.sound_widget = self.bg.create_image(sound_pos_zero, anchor=tk.CENTER, image=self._widgets['sound'])
 
-        # add angle slider
-        self.slider = tk.Scale(self.root, from_=self.min_angle, to=self.max_angle,
-                               orient=tk.HORIZONTAL, command=self._slider_callback)
-        self.slider.config(background='white')
-        self.slider.grid(row=1, column=0)
+        # command buttons
+        self.play_but = tk.Button(self.root, image=self._widgets['play'], command=self._play_pause_callback)
+        self.play_but.grid(row=1, column=0, sticky='w')
+        # bind space bar to play button
+        space_bar_button_binding = lambda x: self._play_pause_callback()
+        self.root.bind('<space>', space_bar_button_binding)
+
 
         # line to cursor position
         self.cursor_line = None
         self.angle_text = None
-        # self.draw_line_to_angle(0, None)
-        self.bg.bind('<Motion>', self._mouse_move)
 
+        self.bg.bind('<Motion>', self._mouse_move)
+        self.bg.bind('<Button-1>', self._mouse_click)
+
+        # self.player.play()
         self.root.mainloop()
+
+
+    def add_widget(self, path, name, resize=None):
+        img = Image.open(path)
+        if resize is not None:
+            img = img.resize(resize)
+        self._widgets[name] = ImageTk.PhotoImage(img)
 
 
     def _on_closing(self):
@@ -166,6 +133,15 @@ class PannerGui():
             self.ls_widgets[angle] = self.bg.create_image(x, y, anchor=tk.CENTER, image=self._widgets['ls'])
 
 
+    def _play_pause_callback(self):
+        if self.player.is_playing:
+            self.play_but.configure(image=self._widgets['play'])
+            self.player.stop()
+        else:
+            self.play_but.configure(image=self._widgets['stop'])
+            self.player.play()
+
+
     def _slider_callback(self, angle):
         angle = int(angle)
 
@@ -178,6 +154,23 @@ class PannerGui():
         self.bg.move(self.sound_widget, x_rel, y_rel)
 
         # set angle for panning
+        self.player.set_angle(angle)
+
+
+    def _mouse_click(self, event):
+        x, y = event.x, event.y
+        angle, _ = _screen_to_polar(x,  y, GUI_CONFIG['win_width'], GUI_CONFIG['win_height'])
+        if angle > 180:
+            angle -= 360
+        angle = max(min(int(angle), self.max_angle), self.min_angle)
+
+        # move sound indicator image on the canvas
+        x_curr, y_curr = _polar_to_screen(self.player.angle, GUI_CONFIG['spkr_radius'], GUI_CONFIG['win_width'], GUI_CONFIG['win_height'])
+        x_new, y_new = _polar_to_screen(angle, GUI_CONFIG['spkr_radius'], GUI_CONFIG['win_width'], GUI_CONFIG['win_height'])
+        x_rel = x_new - x_curr
+        y_rel = y_new - y_curr
+        self.bg.move(self.sound_widget, x_rel, y_rel)
+
         self.player.set_angle(angle)
 
 
@@ -210,6 +203,10 @@ class PannerGui():
             x_spkr, y_spkr = _polar_to_screen(self.ls_high, GUI_CONFIG['spkr_radius'], GUI_CONFIG['win_width'], GUI_CONFIG['win_height'])
             self.ls_widgets[self.ls_high] = self.bg.create_image(x_spkr, y_spkr, anchor=tk.CENTER, image=self._widgets['ls'])
             self.ls_high = None
+
+        # set angle in player
+        # angle = max(min(angle, self.max_angle), self.min_angle)
+        # self.player.set_angle(angle)
 
 
 gui = PannerGui()
