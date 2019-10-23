@@ -4,6 +4,7 @@ from PIL import Image, ImageTk
 import numpy as np
 from threading import Thread
 from time import sleep
+from os.path import basename
 
 from player import VbapPlayer
 
@@ -20,10 +21,6 @@ GUI_CONFIG = {
             'spkr_radius': R,
             'control_height': 100,
 
-            'ls_image_path': 'graphics/loudspeaker_small.png',
-            'ls_highlight_path': 'graphics/loudspeaker_small_highlight.png',
-            'bg_image_path': 'graphics/bg.png',
-            'sound_image_path': 'graphics/note.png',
             'line_colour': 'red',
     
             # dict containing graphic path and scaling size for all widgets
@@ -109,16 +106,20 @@ class PannerGui():
 
         # error display
         self.error_display = tk.Label(self.root, text='', bg='white', fg='red')
-        self.error_display.grid(row=1, column=0, sticky='s')
+        self.error_display.grid(row=1, column=0)
+
+        # file name display
+        self.file_display = tk.Label(self.root, text='', bg='white', fg='black')
+        self.file_display.grid(row=1, column=0, sticky='n')
 
         # line to cursor position
         self.cursor_line = None
         self.angle_text = None
 
+        # events on the top-down-view canvas
         self.bg.bind('<Motion>', self._mouse_move)
         self.bg.bind('<Button-1>', self._mouse_click)
 
-        # self.player.play()
         self.root.mainloop()
 
 
@@ -146,6 +147,8 @@ class PannerGui():
     def _load_callback(self):
         f = filedialog.askopenfilename(filetypes=(('Wave audio files', '*.wav'),))
         self.player.open_file(f)
+        self.open_file = f
+        self.file_display.configure(text='Open File: "{}"'.format(basename(f)))
 
 
     def _play_pause_callback(self):

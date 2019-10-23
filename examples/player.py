@@ -25,11 +25,19 @@ class VbapPlayer():
 
         if filename is not None:
             self.open_file(filename)
+        else:
+            self._wf = None
 
         # hardcoded stereo speaker setup TODO: implement passing setups
         self.spkrs = [30, -30]
         self.bases = list()
         self._set_base_vectors(self.spkrs)
+
+    def __del__(self):
+        if self._wf is not None:
+            self._wf.close()
+            if self.is_playing:
+                self.stop()
 
     def open_file(self, filepath, seamless=False):
         """
@@ -75,12 +83,14 @@ class VbapPlayer():
         outdata[:] = out * self.volume
 
     def play(self):
-        self.is_playing = True
-        self._stream.start()
+        if self._wf is not None:
+            self.is_playing = True
+            self._stream.start()
 
     def stop(self):
-        self.is_playing = False
-        self._stream.stop()
+        if self._wf is not None:
+            self.is_playing = False
+            self._stream.stop()
 
     def set_volume(self, vol):
         if vol < 0:
