@@ -3,8 +3,29 @@ import soundfile as sf
 import numpy as np
 from threading import Thread
 import pyvbap
+from json import load
 
 CHANNELS = 2
+
+
+def parse_setup(filename, filetype='json'):
+    """
+    Helper function that reads a speaker setup from a file.
+    
+    For now, only json format is supported.
+    """
+    with open(filename, 'r') as f:
+        setup = load(f)
+    positions = np.asarray(setup['positions'])
+    if positions.ndim == 1:
+        setup['height'] = False
+    elif positions.ndim == 2:
+        setup['height'] = True
+    else:
+        raise ValueError('Speaker position array has invalid format')
+
+    return setup
+
 
 class VbapPlayer():
     """
@@ -12,24 +33,20 @@ class VbapPlayer():
     it to a given angle using vbap
     """
 
-    def __init__(self, bufsize, filename=None):
+    def __init__(self, bufsize, setup_file, filename=None):
         self.bufsize = bufsize
-        # TODO: channels have to be derived from a speaker setup
-        self.channels = 2
-        self._stream = sd.Stream(channels=2, blocksize=bufsize,
+        self._wf = None
+        self.set_spkr_setup(setup_file)
+
+        self._stream = sd.Stream(channels=self.channels, blocksize=bufsize,
                                  callback=self._audio_callback)
         self.is_playing = False
         self.volume = 1
         self.angle = 0
-        self.bounds = [-30, 30]
 
         if filename is not None:
             self.open_file(filename)
-        else:
-            self._wf = None
 
-        # hardcoded stereo speaker setup TODO: implement passing setups
-        self.spkrs = [30, -30]
         self.bases = list()
         self._set_base_vectors(self.spkrs)
 
@@ -38,6 +55,14 @@ class VbapPlayer():
             self._wf.close()
             if self.is_playing:
                 self.stop()
+
+    def set_spkr_setup(self, filename):
+        setup = parse_setup(filename)
+        self.spkrs = setup['positions']
+        self.bounds = setup['bounds']
+        self.setup_name = setup['name']
+        self.has_height = setup['height']
+        self.channels = len(setup['positions'])
 
     def open_file(self, filepath, seamless=False):
         """

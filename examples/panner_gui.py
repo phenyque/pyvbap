@@ -57,7 +57,7 @@ class PannerGui():
 
     def __init__(self):
         # set up audio player
-        self.player = VbapPlayer(bufsize=GUI_CONFIG['audio_bufsize'])
+        self.player = VbapPlayer(setup_file='Stereo_test.json', bufsize=GUI_CONFIG['audio_bufsize'])
         self.player.set_volume(0.1)
         self.open_file = None
 
