@@ -243,7 +243,8 @@ class PannerGui():
         x_text, y_text = _polar_to_screen(angle + 10, GUI_CONFIG['spkr_radius'] / 3, GUI_CONFIG['win_width'], GUI_CONFIG['win_width'])
 
         # use converted angle for text display
-        self.angle_text = self.bg.create_text(x_text, y_text, text='{}°'.format(conv_angle), fill=line_colour)
+        angle = conv_angle
+        self.angle_text = self.bg.create_text(x_text, y_text, text='{}°'.format(angle), fill=line_colour)
 
         # if there is a speaker at the current angle, highlight that speaker
         if angle in self.ls_widgets.keys():
@@ -256,10 +257,6 @@ class PannerGui():
             x_spkr, y_spkr = _polar_to_screen(self.ls_high, GUI_CONFIG['spkr_radius'], GUI_CONFIG['win_width'], GUI_CONFIG['win_height'])
             self.ls_widgets[self.ls_high] = self.bg.create_image(x_spkr, y_spkr, anchor=tk.CENTER, image=self._widgets['ls'])
             self.ls_high = None
-
-        # set angle in player
-        # angle = max(min(angle, self.max_angle), self.min_angle)
-        # self.player.set_angle(angle)
 
 
 gui = PannerGui()
