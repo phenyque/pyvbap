@@ -21,7 +21,8 @@ GUI_CONFIG = {
             'spkr_radius': R,
             'control_height': 100,
 
-            'line_colour': 'red',
+            'line_colour_out': 'red',
+            'line_colour_in': 'green',
     
             # dict containing graphic path and scaling size for all widgets
             'widgets': {
@@ -57,7 +58,7 @@ class PannerGui():
 
     def __init__(self):
         # set up audio player
-        self.player = VbapPlayer(setup_file='Stereo_test.json', bufsize=GUI_CONFIG['audio_bufsize'])
+        self.player = VbapPlayer(bufsize=GUI_CONFIG['audio_bufsize'])
         self.player.set_volume(0.1)
         self.open_file = None
 
@@ -83,9 +84,6 @@ class PannerGui():
         self.bg.create_image(0, 0, anchor=tk.NW, image=self._widgets['bg'])
 
         # parse ls setup
-        self.ls_pos = self.player.spkrs
-        self.min_angle = self.player.bounds[0]
-        self.max_angle = self.player.bounds[1]
         self.ls_widgets = dict()
         self.ls_high = None
         self._draw_loudspeakers()
@@ -100,9 +98,12 @@ class PannerGui():
         # bind space bar to play button
         space_bar_button_binding = lambda x: self._play_pause_callback()
         self.root.bind('<space>', space_bar_button_binding)
-        self.load_but = tk.Button(self.root, text='Load File',
+        self.load_but = tk.Button(self.root, text='Load Sound File',
                                   command=self._load_callback)
         self.load_but.grid(row=1, column=0, sticky='e')
+        self.setup_but = tk.Button(self.root, text='Load Setup File',
+                                   command=self._setup_callback)
+        self.setup_but.grid(row=1, column=0, sticky='es')
 
         # error display
         self.error_display = tk.Label(self.root, text='', bg='white', fg='red')
@@ -136,12 +137,30 @@ class PannerGui():
 
 
     def _draw_loudspeakers(self):
-        for angle in self.ls_pos:
+        for ang in self.ls_widgets:
+            self.bg.delete(self.ls_widgets[ang])
+
+        self.ls_widgets = dict()
+
+        for angle in self.player.spkrs:
             x, y = _polar_to_screen(angle,
                                     GUI_CONFIG['spkr_radius'], 
                                     GUI_CONFIG['win_width'],
                                     GUI_CONFIG['win_height'])
             self.ls_widgets[angle] = self.bg.create_image(x, y, anchor=tk.CENTER, image=self._widgets['ls'])
+
+
+    def _setup_callback(self):
+        old_angle = self.player.angle
+
+        f = filedialog.askopenfilename(filetypes=(('JSON files', '*.json'),))
+        self.player.set_spkr_setup(f)
+
+        new_angle = self.player.angle
+        if new_angle != old_angle:
+            self._move_sound_widget(old_angle, new_angle)
+
+        self._draw_loudspeakers()
 
 
     def _load_callback(self):
@@ -172,55 +191,63 @@ class PannerGui():
         self.error_display.configure(text='')
 
 
-    def _slider_callback(self, angle):
-        angle = int(angle)
+    # def _slider_callback(self, angle):
+        # angle = int(angle)
 
-        # move sound indicator image on the canvas
-        x_curr, y_curr = _polar_to_screen(self.player.angle, GUI_CONFIG['spkr_radius'], GUI_CONFIG['win_width'], GUI_CONFIG['win_height'])
-        x_new, y_new = _polar_to_screen(angle, GUI_CONFIG['spkr_radius'], GUI_CONFIG['win_width'], GUI_CONFIG['win_height'])
+        # # move sound indicator image on the canvas
+        # x_curr, y_curr = _polar_to_screen(self.player.angle, GUI_CONFIG['spkr_radius'], GUI_CONFIG['win_width'], GUI_CONFIG['win_height'])
+        # x_new, y_new = _polar_to_screen(angle, GUI_CONFIG['spkr_radius'], GUI_CONFIG['win_width'], GUI_CONFIG['win_height'])
+        # x_rel = x_new - x_curr
+        # y_rel = y_new - y_curr
+
+        # self.bg.move(self.sound_widget, x_rel, y_rel)
+
+        # # set angle for panning
+        # self.player.set_angle(angle)
+
+    def _move_sound_widget(self, old_angle, new_angle):
+        x_curr, y_curr = _polar_to_screen(old_angle, GUI_CONFIG['spkr_radius'], GUI_CONFIG['win_width'], GUI_CONFIG['win_height'])
+        x_new, y_new = _polar_to_screen(new_angle, GUI_CONFIG['spkr_radius'], GUI_CONFIG['win_width'], GUI_CONFIG['win_height'])
         x_rel = x_new - x_curr
         y_rel = y_new - y_curr
-
         self.bg.move(self.sound_widget, x_rel, y_rel)
-
-        # set angle for panning
-        self.player.set_angle(angle)
-
 
     def _mouse_click(self, event):
         x, y = event.x, event.y
-        angle, _ = _screen_to_polar(x,  y, GUI_CONFIG['win_width'], GUI_CONFIG['win_height'])
-        if angle > 180:
-            angle -= 360
-        angle = max(min(int(angle), self.max_angle), self.min_angle)
+        new_angle, _ = _screen_to_polar(x,  y, GUI_CONFIG['win_width'], GUI_CONFIG['win_height'])
+        if new_angle > 180:
+            new_angle -= 360
+        new_angle = max(min(int(new_angle), self.player.bounds[1]), self.player.bounds[0])
 
-        # move sound indicator image on the canvas
-        x_curr, y_curr = _polar_to_screen(self.player.angle, GUI_CONFIG['spkr_radius'], GUI_CONFIG['win_width'], GUI_CONFIG['win_height'])
-        x_new, y_new = _polar_to_screen(angle, GUI_CONFIG['spkr_radius'], GUI_CONFIG['win_width'], GUI_CONFIG['win_height'])
-        x_rel = x_new - x_curr
-        y_rel = y_new - y_curr
-        self.bg.move(self.sound_widget, x_rel, y_rel)
+        self._move_sound_widget(self.player.angle, new_angle)
 
-        self.player.set_angle(angle)
-
+        self.player.set_angle(new_angle)
 
     def _mouse_move(self, event):
         x, y = event.x, event.y
         # compute angle in listener coordinates
         angle, radius = _screen_to_polar(x,  y, GUI_CONFIG['win_width'], GUI_CONFIG['win_height'])
 
-        # draw red line with annotated angle 
+        # convert angle fomr [0, 360] format to [-180, 180] format
+        conv_angle = int(angle - 360 if angle > 180 else angle)
+
+        # check if angle is in allowed panning range
+        if conv_angle < self.player.bounds[0] or conv_angle > self.player.bounds[1]:
+            line_colour = GUI_CONFIG['line_colour_out']
+        else:
+            line_colour = GUI_CONFIG['line_colour_in']
+
+        # draw red line with annotated angle
         if self.cursor_line is not None:
             self.bg.delete(self.cursor_line)
         if self.angle_text is not None:
             self.bg.delete(self.angle_text)
         x_r, y_r = _polar_to_screen(angle, GUI_CONFIG['spkr_radius'], GUI_CONFIG['win_width'], GUI_CONFIG['win_width'])
-        self.cursor_line = self.bg.create_line(self.x_mid, self.y_mid, x_r, y_r, fill=GUI_CONFIG['line_colour'])
+        self.cursor_line = self.bg.create_line(self.x_mid, self.y_mid, x_r, y_r, fill=line_colour)
         x_text, y_text = _polar_to_screen(angle + 10, GUI_CONFIG['spkr_radius'] / 3, GUI_CONFIG['win_width'], GUI_CONFIG['win_width'])
-        if angle > 180:
-            angle -= 360
-        angle = int(angle)
-        self.angle_text = self.bg.create_text(x_text, y_text, text='{}°'.format(angle), fill=GUI_CONFIG['line_colour'])
+
+        # use converted angle for text display
+        self.angle_text = self.bg.create_text(x_text, y_text, text='{}°'.format(conv_angle), fill=line_colour)
 
         # if there is a speaker at the current angle, highlight that speaker
         if angle in self.ls_widgets.keys():

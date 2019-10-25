@@ -5,17 +5,16 @@ from threading import Thread
 import pyvbap
 from json import load
 
-CHANNELS = 2
-
 
 def parse_setup(filename, filetype='json'):
     """
     Helper function that reads a speaker setup from a file.
-    
     For now, only json format is supported.
     """
     with open(filename, 'r') as f:
         setup = load(f)
+
+    # infer from setup file whether setup uses height speakers
     positions = np.asarray(setup['positions'])
     if positions.ndim == 1:
         setup['height'] = False
@@ -30,25 +29,25 @@ def parse_setup(filename, filetype='json'):
 class VbapPlayer():
     """
     Audio player that continuously loops audio from a wav file and pans
-    it to a given angle using vbap
+    it to a given angle using VBAP.
     """
 
-    def __init__(self, bufsize, setup_file, filename=None):
+    def __init__(self, bufsize, setup_file=None, filename=None):
         self.bufsize = bufsize
         self._wf = None
-        self.set_spkr_setup(setup_file)
-
-        self._stream = sd.Stream(channels=self.channels, blocksize=bufsize,
-                                 callback=self._audio_callback)
         self.is_playing = False
         self.volume = 1
         self.angle = 0
+        self.bases = list()
+        self.bounds = (-179, 180)
+        self.has_valid_setup = False
+        self.spkrs = list()
+
+        if setup_file is not None:
+            self.set_spkr_setup(setup_file)
 
         if filename is not None:
             self.open_file(filename)
-
-        self.bases = list()
-        self._set_base_vectors(self.spkrs)
 
     def __del__(self):
         if self._wf is not None:
@@ -57,12 +56,26 @@ class VbapPlayer():
                 self.stop()
 
     def set_spkr_setup(self, filename):
+        """
+        Load a new speaker setup to use for panning.
+
+        filename - name of a file with a valid speaker setup description
+        """
         setup = parse_setup(filename)
         self.spkrs = setup['positions']
         self.bounds = setup['bounds']
         self.setup_name = setup['name']
         self.has_height = setup['height']
         self.channels = len(setup['positions'])
+
+        # limit current angle to new bounds
+        self.angle = min(self.bounds[1], max(self.angle, self.bounds[0]))
+
+        self.bases = list()
+        self._set_base_vectors(self.spkrs)
+        self._stream = sd.Stream(channels=self.channels, blocksize=self.bufsize,
+                                 callback=self._audio_callback)
+        self.has_valid_setup = True
 
     def open_file(self, filepath, seamless=False):
         """
@@ -103,29 +116,45 @@ class VbapPlayer():
             self._wf.seek(0)
             buf = np.concatenate([buf, self._wf.read(self.bufsize - len(buf))])
 
-        out = pyvbap.pan_2d(self.angle, buf, self.spkrs, self.bases)
+        out = pyvbap.pan_2d(self.angle, buf, self.spkrs, self.bases, self.volume)
 
-        outdata[:] = out * self.volume
+        outdata[:] = out
 
     def play(self):
-        if self._wf is not None:
+        """
+        Start playing and panning the given file.
+        Is ignored, if no file is set or player is already playing.
+        """
+        if self.has_valid_setup and self._wf is not None and not self.is_playing:
             self.is_playing = True
             self._stream.start()
 
     def stop(self):
-        if self._wf is not None:
+        """
+        Stop playback.
+        """
+        if self.has_valid_setup and self._wf is not None and self.is_playing:
             self.is_playing = False
             self._stream.stop()
 
     def set_volume(self, vol):
+        """
+        Set plaback volume. The given value is used as normalisation factor in
+        the power normalisation applied to the panned signals in VBAP.
+        """
         if vol < 0:
             print('Can not assign negative volume.')
         else:
             self.volume = vol
 
     def set_angle(self, ang):
-        ang = np.clip(ang, self.bounds[0], self.bounds[1])
-        self.angle = ang
+        """
+        Set a new angle for panning. Angle is interpreted to be in degrees and 
+        to be in (-180°, 180°]
+        """
+        if self.has_valid_setup:
+            ang = np.clip(ang, self.bounds[0], self.bounds[1])
+            self.angle = ang
 
 
 if __name__ == '__main__':
