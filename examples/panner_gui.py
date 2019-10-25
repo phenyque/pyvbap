@@ -91,6 +91,7 @@ class PannerGui():
         # draw sound position indicator
         sound_pos_zero = _polar_to_screen(0, R, GUI_CONFIG['win_width'], GUI_CONFIG['win_height'])
         self.sound_widget = self.bg.create_image(sound_pos_zero, anchor=tk.CENTER, image=self._widgets['sound'])
+        self.bg.itemconfigure(self.sound_widget, state=tk.HIDDEN)
 
         # command buttons
         self.play_but = tk.Button(self.root, image=self._widgets['play'], command=self._play_pause_callback)
@@ -154,20 +155,23 @@ class PannerGui():
         old_angle = self.player.angle
 
         f = filedialog.askopenfilename(filetypes=(('JSON files', '*.json'),))
-        self.player.set_spkr_setup(f)
+        if len(f) != 0:
+            did_not_have_setup = not self.player.has_valid_setup
+            self.player.set_spkr_setup(f)
 
-        new_angle = self.player.angle
-        if new_angle != old_angle:
-            self._move_sound_widget(old_angle, new_angle)
+            new_angle = self.player.angle
+            if new_angle != old_angle or did_not_have_setup:
+                self._move_sound_widget(old_angle, new_angle)
 
-        self._draw_loudspeakers()
+            self._draw_loudspeakers()
 
 
     def _load_callback(self):
         f = filedialog.askopenfilename(filetypes=(('Wave audio files', '*.wav'),))
-        self.player.open_file(f)
-        self.open_file = f
-        self.file_display.configure(text='Open File: "{}"'.format(basename(f)))
+        if len(f) != 0:
+            self.player.open_file(f)
+            self.open_file = f
+            self.file_display.configure(text='Open File: "{}"'.format(basename(f)))
 
 
     def _play_pause_callback(self):
@@ -190,27 +194,19 @@ class PannerGui():
         sleep(GUI_CONFIG['error_duration'])
         self.error_display.configure(text='')
 
-
-    # def _slider_callback(self, angle):
-        # angle = int(angle)
-
-        # # move sound indicator image on the canvas
-        # x_curr, y_curr = _polar_to_screen(self.player.angle, GUI_CONFIG['spkr_radius'], GUI_CONFIG['win_width'], GUI_CONFIG['win_height'])
-        # x_new, y_new = _polar_to_screen(angle, GUI_CONFIG['spkr_radius'], GUI_CONFIG['win_width'], GUI_CONFIG['win_height'])
-        # x_rel = x_new - x_curr
-        # y_rel = y_new - y_curr
-
-        # self.bg.move(self.sound_widget, x_rel, y_rel)
-
-        # # set angle for panning
-        # self.player.set_angle(angle)
-
     def _move_sound_widget(self, old_angle, new_angle):
-        x_curr, y_curr = _polar_to_screen(old_angle, GUI_CONFIG['spkr_radius'], GUI_CONFIG['win_width'], GUI_CONFIG['win_height'])
-        x_new, y_new = _polar_to_screen(new_angle, GUI_CONFIG['spkr_radius'], GUI_CONFIG['win_width'], GUI_CONFIG['win_height'])
-        x_rel = x_new - x_curr
-        y_rel = y_new - y_curr
-        self.bg.move(self.sound_widget, x_rel, y_rel)
+        """
+        Move the sound position widget to a new place and/or hide/unhide it.
+        """
+        if not self.player.has_valid_setup:
+            self.bg.itemconfigure(self.sound_widget, state=tk.HIDDEN)
+        else:
+            self.bg.itemconfigure(self.sound_widget, state=tk.NORMAL)
+            x_curr, y_curr = _polar_to_screen(old_angle, GUI_CONFIG['spkr_radius'], GUI_CONFIG['win_width'], GUI_CONFIG['win_height'])
+            x_new, y_new = _polar_to_screen(new_angle, GUI_CONFIG['spkr_radius'], GUI_CONFIG['win_width'], GUI_CONFIG['win_height'])
+            x_rel = x_new - x_curr
+            y_rel = y_new - y_curr
+            self.bg.move(self.sound_widget, x_rel, y_rel)
 
     def _mouse_click(self, event):
         x, y = event.x, event.y

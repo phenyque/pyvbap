@@ -39,7 +39,7 @@ class VbapPlayer():
         self.volume = 1
         self.angle = 0
         self.bases = list()
-        self.bounds = (-179, 180)
+        self.bounds = (0, 0)
         self.has_valid_setup = False
         self.spkrs = list()
 
