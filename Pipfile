@@ -5,9 +5,12 @@ verify_ssl = true
 
 [dev-packages]
 ipython = "*"
+ipdb = "*"
+matplotlib = "*"
 
 [packages]
 numpy = "*"
+scipy = "*"
 
 [requires]
 python_version = "3.9"
