@@ -7,6 +7,7 @@ from numpy.typing import ArrayLike
 from typing import Union, Optional
 from itertools import combinations
 from scipy.spatial import ConvexHull
+from scipy.spatial.qhull import QhullError
 
 
 DEG_2_RAD = np.pi / 180
@@ -25,7 +26,10 @@ class VbapPanner:
 
         self.ls_vec = ang_to_cart(self.ls_az, self.ls_el, self.is_2d)
 
-        self.triangles = ConvexHull(self.ls_vec.T).simplices
+        try:
+            self.triangles = ConvexHull(self.ls_vec.T).simplices
+        except QhullError:
+            raise CanNotConstructConvexHull("Error at complex hull construction. Your loudspeaker setup might be invalid!")
 
     def calc_gains(self, az: float, el: float, base: Optional[np.ndarray] = None) -> np.ndarray:
         """
@@ -118,3 +122,7 @@ def _normalize_gains(gains, vol_norm):
     Normalize gain factors to garantue power conservation.
     """
     return gains * np.sqrt(vol_norm / np.sum(gains ** 2))
+
+
+class CanNotConstructConvexHull(Exception):
+    pass
