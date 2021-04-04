@@ -11,6 +11,9 @@ matplotlib = "*"
 [packages]
 numpy = "*"
 scipy = "*"
+sounddevice = "*"
+click = "*"
+soundfile = "*"
 
 [requires]
 python_version = "3.9"
