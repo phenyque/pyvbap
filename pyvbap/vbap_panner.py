@@ -13,10 +13,18 @@ DEG_2_RAD = np.pi / 180
 
 class VbapPanner:
 
-    def __init__(self, ls_az : ArrayLike, ls_el : ArrayLike):
+    def __init__(self, ls_az : ArrayLike, ls_el : Union[ArrayLike, None]):
+
         self.ls_az = np.asarray(ls_az, dtype=float)
-        self.ls_el = np.asarray(ls_el, dtype=float)
-        self.ls_vec = ang_to_cart(self.ls_az, self.ls_el)
+        if ls_el is None or np.all( (el_arr := np.asarray(ls_el, dtype=float) == 0) ):
+            self.is_2d = True
+            self.ls_el = np.zeros(self.ls_az.shape)
+        else:
+            self.is_2d = False
+            self.ls_el = el_arr
+
+        self.ls_vec = ang_to_cart(self.ls_az, self.ls_el, self.is_2d)
+
         self.triangles = ConvexHull(self.ls_vec.T).simplices
 
     def calc_gains(self, az: float, el: float, triplet_base: np.ndarray) -> np.ndarray:
@@ -26,13 +34,12 @@ class VbapPanner:
 
         az: azimuth angle in degrees
         el: elevation angle in degrees
-        triplet_base: 3x3 matrix containing the loudspeaker vectors in its columns (!)
+        triplet_base: 3x3 matrix containing the loudspeaker vectors in its rows (!)
         """
-        if (b_shape := triplet_base.shape) != (3, 3):
-            msg = f"Base for active triplet has to be 3D, but has shape {b_shape}"
-            raise ValueError(msg)
+        if self.is_2d and el != 0:
+            raise ValueError(f"Elevation has to be zero for 2-D case, but is {el}.")
 
-        source_vec = ang_to_cart(az, el)
+        source_vec = ang_to_cart(az, el, self.is_2d)
         gains = np.linalg.inv(triplet_base) @ source_vec
 
         return gains
@@ -42,31 +49,54 @@ class VbapPanner:
         Find active triangle by looping over all possible triangles and choosing
         the triangle with all positive gains.
         """
-        active_tri = np.asarray([-1, -1, -1])
-        for tri in self.triangles:
-            base = self.ls_vec[:, tri]
-            gains = self.calc_gains(az, el, base)
-            if (np.min(gains) > 0):
-                active_tri = tri
-                break
+        if self.is_2d and el != 0:
+            raise ValueError(f"Elevation has to be zero for 2-D case, but is {el}.")
+
+        # If given angles correspond to a loudspeaker position, directly reuturn
+        # that index. Otherwise find active triangle/pair by calculating gains with
+        # all possible triangles/pairs and choosing the one with all-positive gains
+        try:
+            active_tri = list(zip(self.ls_az, self.ls_el)).index((az, el))
+        except IndexError:
+            active_tri = np.asarray([-1, -1, -1])
+            for tri in self.triangles:
+                base = self.ls_vec[:, tri]
+                gains = self.calc_gains(az, el, base)
+                if (np.min(gains) > 0):
+                    active_tri = tri
+                    break
 
         return active_tri
 
 
-def ang_to_cart(az : Union[float, np.ndarray] , el : Union[float, np.ndarray], unit: str ="DEG") -> np.ndarray:
+def ang_to_cart(az : Union[float, np.ndarray] , el : Union[float, np.ndarray] = 0, is_2d: bool = False, unit: str ="DEG") -> np.ndarray:
     """
-    Calculate three-dimensional unit vector for given azimuth and elevation angles
+    Calculate unit vector for given azimuth and elevation angles.
+
+    az: azimuth angle
+    el: elevation angle
+    is_2d: flag, if true, result is returned as 2-D vector
+    unit: either "DEG" or "RAD", indicates how to interpret angle values
     """
+    azi = np.copy(az)
+    ele = np.copy(el)
+
     if unit == "DEG":
-        az *= DEG_2_RAD
-        el *= DEG_2_RAD
+        azi *= DEG_2_RAD
+        ele *= DEG_2_RAD
     elif unit != "RAD":
         raise ValueError(f"Unit has to be either 'DEG' or 'RAD', but is {unit}")
 
-    x = np.cos(el) * np.cos(az)
-    y = np.cos(el) * np.sin(az)
-    z = np.sin(el)
-    return np.asarray([x, y, z])
+    x = np.cos(ele) * np.cos(azi)
+    y = np.cos(ele) * np.sin(azi)
+
+    if is_2d:
+        result = np.asarray([x, y])
+    else:
+        z = np.sin(ele)
+        result = np.asarray([x, y, z])
+
+    return result
 
 
 def _normalize_gains(gains, vol_norm):
