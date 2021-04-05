@@ -13,7 +13,7 @@ DEG_2_RAD = np.pi / 180
 
 class VbapPanner:
 
-    def __init__(self, ls_az : ArrayLike, ls_el : Optional[ArrayLike]):
+    def __init__(self, ls_az : ArrayLike, ls_el : Optional[ArrayLike] = None):
 
         self.ls_az = np.asarray(ls_az, dtype=float)
         if ls_el is None or np.all( (el_arr := np.asarray(ls_el, dtype=float) == 0) ):
@@ -58,10 +58,15 @@ class VbapPanner:
 
         return gains
 
-    def find_active_triangle(self, az: float, el: float):
+    def find_active_triangle(self, az: float, el: float) -> ArrayLike:
         """
         Find active triangle by looping over all possible triangles and choosing
         the triangle with all positive gains.
+
+        az: azimuth angle
+        el: elevation angle
+
+        returns: index of active loudspeakers in the stored setup, can be integer or numpy array
         """
         if self.is_2d and el != 0:
             raise ValueError(f"Elevation has to be zero for 2-D case, but is {el}.")
