@@ -7,6 +7,7 @@ verify_ssl = true
 ipython = "*"
 ipdb = "*"
 matplotlib = "*"
+black = "*"
 
 [packages]
 numpy = "*"
@@ -17,3 +18,6 @@ soundfile = "*"
 
 [requires]
 python_version = "3.9"
+
+[pipenv]
+allow_prereleases = true
