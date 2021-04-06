@@ -48,7 +48,9 @@ def load_setup_file(f: str) -> dict:
         or not "azimuth" in setup["positions"]
         or not "elevation" in setup["positions"]
     ):
-        print("Setup file seems to be malformed, please refer to documentation.")
+        print(
+            "Setup file seems to be malformed, please refer to example file and documentation."
+        )
         raise CanNotLoadSetupFromFile()
 
     return setup["positions"]

@@ -33,7 +33,7 @@ Note that only loudspeaker setups can be used for which the convex hull can be c
 
 Under ./examples, there are some example applications using VbapPanner:
 
-- pan_to_file.py: command line utility that reads a mono signal from a .wav file and pans it to a given position in a given loudspeaker format
+- pan_to_file.py: Command line utility that reads a mono signal from a .wav file and pans it to a given position in a given loudspeaker format. Your own loudspeaker positions can be passed using a .toml file, there is an example file "5d0.toml" provided.
 
 ### References
 [1]Pulkki, V.: _Virtual Sound Source Positioning Using Vector Base Amplitude Panning_. In: _Journal of the Audio Engineering Society_, Vol. 45 No. 6, 1997

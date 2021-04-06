@@ -1,0 +1,5 @@
+title = "5.0 loudspeaker setup"
+
+[positions]
+azimuth = [30, 0, -30, 110, -110]
+elevation = [0, 0, 0, 0, 0]
