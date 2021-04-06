@@ -12,6 +12,7 @@ from scipy.spatial.qhull import QhullError
 
 DEG_2_RAD = np.pi / 180
 
+
 class VbapPanner:
 
     def __init__(self, ls_az : ArrayLike, ls_el : Optional[ArrayLike] = None):
@@ -38,7 +39,7 @@ class VbapPanner:
 
         az: azimuth angle in degrees
         el: elevation angle in degrees
-        base: optional base amtrix to use for gain calculation, if given, only
+        base: optional base matrix to use for gain calculation, if given, only
               the active gains will be returned
         """
         if self.is_2d and el != 0:
