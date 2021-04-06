@@ -1,13 +1,12 @@
 #!/usr/bin/env python3 
 import argparse
 from pyvbap import VbapPanner
-from pyvbap import CanNotConstructConvexHull
 import soundfile as sf
 import numpy as np
-import json
-import os
 import sys
 import pprint
+import os
+import toml
 
 
 LS_FORMATS = {
@@ -34,12 +33,34 @@ def pan_to_file(infile: str, outfile: str, ls_pos: dict, azimuth: float, elevati
     sf.write(outfile, out, fs)
 
 
+def load_setup_file(f: str) -> dict:
+    """
+    Parse a loudspeaker setup from a given toml file
+    """
+    try:
+        setup = toml.load(f)
+    except toml.TomlDecodeError as e:
+        print("Error when loading ls setup from file:")
+        print(e)
+        raise CanNotLoadSetupFromFile()
+
+    if not "positions" in setup or not "azimuth" in setup["positions"] or not "elevation" in setup["positions"]:
+        print("Setup file seems to be malformed, please refer to documentation.")
+        raise CanNotLoadSetupFromFile()
+
+    return setup["positions"]
+
+
+class CanNotLoadSetupFromFile(Exception):
+    pass
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--infile", type=str, default="", help="Input mono .wav file")
     parser.add_argument("-o", "--outfile", type=str, default="panned.wav", help="Output .wav file with panned mono signal")
 
-    ls_text = f"Loudspeaker setup name, one of {list(LS_FORMATS.keys())}"
+    ls_text = f"Loudspeaker setup name, either path to .toml file or one of {list(LS_FORMATS.keys())}"
     parser.add_argument("-s", "--ls_setup", type=str, default="", help=ls_text)
 
     parser.add_argument("-az", "--azimuth", type=int, default=0, help="Azimuth angle for panning")
@@ -63,8 +84,14 @@ if __name__ == "__main__":
     # get loudspeaker setup
     if ls_setup in LS_FORMATS.keys():
         ls_pos = LS_FORMATS[ls_setup]
+    elif os.path.isfile(ls_setup):
+        try:
+            ls_pos = load_setup_file(ls_setup)
+        except CanNotLoadSetupFromFile:
+            print("Could not load setup from file '{ls_setup}'")
+            sys.exit(1)
     else:
-        print(f"Given loudspeaker setup '{ls_setup}' is not defined. You can add it in the 'LS_FORMATS' dict")
+        print(f"Given loudspeaker setup '{ls_setup}' is neither a file nor part of the pre-defined formats.")
         sys.exit(1)
 
     pan_to_file(infile, outfile, ls_pos, args.azimuth, args.elevation)

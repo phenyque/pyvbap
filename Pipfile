@@ -8,6 +8,7 @@ ipython = "*"
 ipdb = "*"
 matplotlib = "*"
 black = "*"
+toml = "*"
 
 [packages]
 numpy = "*"
