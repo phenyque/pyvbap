@@ -1,1 +1,1 @@
-from .vbap_panner import VbapPanner
+from .vbap_panner import VbapPanner, CanNotConstructConvexHull
