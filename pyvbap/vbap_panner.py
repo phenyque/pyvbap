@@ -14,11 +14,10 @@ DEG_2_RAD = np.pi / 180
 
 
 class VbapPanner:
-
-    def __init__(self, ls_az : ArrayLike, ls_el : Optional[ArrayLike] = None):
+    def __init__(self, ls_az: ArrayLike, ls_el: Optional[ArrayLike] = None):
 
         self.ls_az = np.asarray(ls_az, dtype=float)
-        if ls_el is None or np.all( (el_arr := np.asarray(ls_el, dtype=float) == 0) ):
+        if ls_el is None or np.all((el_arr := np.asarray(ls_el, dtype=float) == 0)):
             self.is_2d = True
             self.ls_el = np.zeros(self.ls_az.shape)
         else:
@@ -30,11 +29,15 @@ class VbapPanner:
         try:
             self.triangles = ConvexHull(self.ls_vec.T).simplices
         except QhullError:
-            raise CanNotConstructConvexHull("Error at complex hull construction. Your loudspeaker setup might be invalid!")
+            raise CanNotConstructConvexHull(
+                "Error at complex hull construction. Your loudspeaker setup might be invalid!"
+            )
 
-    def calc_gains(self, az: float, el: float, base: Optional[np.ndarray] = None) -> np.ndarray:
+    def calc_gains(
+        self, az: float, el: float, base: Optional[np.ndarray] = None
+    ) -> np.ndarray:
         """
-        Calculate gains for all loudspeakers to position a source at the 
+        Calculate gains for all loudspeakers to position a source at the
         given azimuth and elevation. Inacitve triplets will have zero gain.
 
         az: azimuth angle in degrees
@@ -86,14 +89,19 @@ class VbapPanner:
             for tri in self.triangles:
                 base = self.ls_vec[:, tri]
                 gains = self.calc_gains(az, el, base)
-                if (np.min(gains) > 0):
+                if np.min(gains) > 0:
                     active_tri = tri
                     break
 
         return active_tri
 
 
-def ang_to_cart(az : Union[float, np.ndarray] , el : Union[float, np.ndarray] = 0, is_2d: bool = False, unit: str ="DEG") -> np.ndarray:
+def ang_to_cart(
+    az: Union[float, np.ndarray],
+    el: Union[float, np.ndarray] = 0,
+    is_2d: bool = False,
+    unit: str = "DEG",
+) -> np.ndarray:
     """
     Calculate unit vector for given azimuth and elevation angles.
 

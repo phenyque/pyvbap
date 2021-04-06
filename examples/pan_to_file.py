@@ -1,4 +1,4 @@
-#!/usr/bin/env python3 
+#!/usr/bin/env python3
 import argparse
 from pyvbap import VbapPanner
 import soundfile as sf
@@ -10,18 +10,17 @@ import toml
 
 
 LS_FORMATS = {
-        "5d0": {
-                "azimuth": [30, 0, -30, 110, -110],
-                "elevation": [0,  0,   0,   0,    0]
-            },
-        "5d0+4": {
-                "azimuth": [30, 0, -30, 110, -110, 45, -45, 135, -135],
-                "elevation": [ 0, 0,   0,   0,    0, 45,  45,  45,   45]
-            }
-        }
+    "5d0": {"azimuth": [30, 0, -30, 110, -110], "elevation": [0, 0, 0, 0, 0]},
+    "5d0+4": {
+        "azimuth": [30, 0, -30, 110, -110, 45, -45, 135, -135],
+        "elevation": [0, 0, 0, 0, 0, 45, 45, 45, 45],
+    },
+}
 
 
-def pan_to_file(infile: str, outfile: str, ls_pos: dict, azimuth: float, elevation: float):
+def pan_to_file(
+    infile: str, outfile: str, ls_pos: dict, azimuth: float, elevation: float
+):
     """
     Pan a mono audio signal to a position (azimuth and elevation) in a loudspeaker setup using Vbap.
     """
@@ -44,7 +43,11 @@ def load_setup_file(f: str) -> dict:
         print(e)
         raise CanNotLoadSetupFromFile()
 
-    if not "positions" in setup or not "azimuth" in setup["positions"] or not "elevation" in setup["positions"]:
+    if (
+        not "positions" in setup
+        or not "azimuth" in setup["positions"]
+        or not "elevation" in setup["positions"]
+    ):
         print("Setup file seems to be malformed, please refer to documentation.")
         raise CanNotLoadSetupFromFile()
 
@@ -56,17 +59,36 @@ class CanNotLoadSetupFromFile(Exception):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--infile", type=str, default="", help="Input mono .wav file")
-    parser.add_argument("-o", "--outfile", type=str, default="panned.wav", help="Output .wav file with panned mono signal")
+    parser = argparse.ArgumentParser(
+        description="Pan mono audio signal to a given loudspeaker setup using Vbap"
+    )
+    parser.add_argument(
+        "-i", "--infile", type=str, default="", help="Input mono .wav file"
+    )
+    parser.add_argument(
+        "-o",
+        "--outfile",
+        type=str,
+        default="panned.wav",
+        help="Output .wav file with panned mono signal",
+    )
 
     ls_text = f"Loudspeaker setup name, either path to .toml file or one of {list(LS_FORMATS.keys())}"
     parser.add_argument("-s", "--ls_setup", type=str, default="", help=ls_text)
 
-    parser.add_argument("-az", "--azimuth", type=int, default=0, help="Azimuth angle for panning")
-    parser.add_argument("-el", "--elevation", type=int, default=0, help="Elevation angle for panning")
+    parser.add_argument(
+        "-az", "--azimuth", type=int, default=0, help="Azimuth angle for panning"
+    )
+    parser.add_argument(
+        "-el", "--elevation", type=int, default=0, help="Elevation angle for panning"
+    )
 
-    parser.add_argument("-l", "--list_setups", action="store_true", help="List available loudspeaker setups and exit")
+    parser.add_argument(
+        "-l",
+        "--list_setups",
+        action="store_true",
+        help="List available loudspeaker setups and exit",
+    )
 
     args = parser.parse_args()
 
@@ -91,7 +113,9 @@ if __name__ == "__main__":
             print("Could not load setup from file '{ls_setup}'")
             sys.exit(1)
     else:
-        print(f"Given loudspeaker setup '{ls_setup}' is neither a file nor part of the pre-defined formats.")
+        print(
+            f"Given loudspeaker setup '{ls_setup}' is neither a file nor part of the pre-defined formats."
+        )
         sys.exit(1)
 
     pan_to_file(infile, outfile, ls_pos, args.azimuth, args.elevation)
