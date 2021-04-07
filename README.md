@@ -2,6 +2,8 @@
 
 Vector base amplitude panning (VBAP) implemented in python. Implementation follows the one described in [1].
 
+Dependencies can be installled from the pipfile using `pipenv` via `pipenv install`.
+
 The algorithm is implemented in a class `VbapPanner` that can be directly imported from the package.
 At object creation, pass the loudspeaker positions of your setup as azimuth and elevation angle lists and calculate panning gains like so:
 
@@ -69,6 +71,10 @@ player = VbapPlayer(ls_az, ls_el, filename)
 player.play() # starts playing asynchronously -> interpreter session goes on
 player.set_position(30, 0) # repeat with different angles to move source
 ```
+
+### panner_gui.py
+
+Gui application that lets you pan a mono source around by clicking with the mouse. Start with `python3 panner_gui.py`
 
 ## References
 [1]Pulkki, V.: _Virtual Sound Source Positioning Using Vector Base Amplitude Panning_. In: _Journal of the Audio Engineering Society_, Vol. 45 No. 6, 1997
