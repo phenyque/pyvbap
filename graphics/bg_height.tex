@@ -1,0 +1,26 @@
+\documentclass[tikz, crop, border=5pt]{standalone}
+
+%\usepackage{tikz}
+\usepackage{tkz-euclide}
+\usetkzobj{all}
+\usepackage{amsmath}
+\usepackage{bm}
+
+\begin{document}
+
+	\begin{tikzpicture}[thick]
+
+		\draw [line width=1mm, lightgray] (0, 0) circle (5cm);
+		
+		\draw [line width=.5mm, dashed, lightgray] (0, 0) -- (-5, 0);
+		\draw [line width=.5mm, dashed, lightgray] (0, 0) -- (5, 0);
+		\draw [line width=.5mm, dashed, lightgray] (0, 0) -- (0, -5);
+		\draw [line width=.5mm, dashed, lightgray] (0, 0) -- (0, 5);
+		
+		% listener head
+		\draw [fill] (0, 0) circle (0.5cm);
+		\draw [fill] (-0.75, 0) -- (0, -0.3) -- (0, 0.3) -- cycle;
+		
+	\end{tikzpicture}
+
+\end{document}
