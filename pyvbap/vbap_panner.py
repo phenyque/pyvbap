@@ -2,10 +2,10 @@
 Implementation of the VBAP method for panning a source in (almost) arbitrary
 speaker setups.
 """
+
 import numpy as np
 from numpy.typing import ArrayLike
 from typing import Union, Optional
-from itertools import combinations
 from scipy.spatial import ConvexHull
 from scipy.spatial.qhull import QhullError
 
@@ -15,7 +15,6 @@ DEG_2_RAD = np.pi / 180
 
 class VbapPanner:
     def __init__(self, ls_az: ArrayLike, ls_el: Optional[ArrayLike] = None):
-
         self.ls_az = np.asarray(ls_az, dtype=float)
         if ls_el is None or np.all((el_arr := np.asarray(ls_el, dtype=float) == 0)):
             self.is_2d = True
@@ -135,7 +134,7 @@ def _normalize_gains(gains, vol_norm):
     """
     Normalize gain factors to garantue power conservation.
     """
-    return gains * np.sqrt(vol_norm / np.sum(gains ** 2))
+    return gains * np.sqrt(vol_norm / np.sum(gains**2))
 
 
 class CanNotConstructConvexHull(Exception):

@@ -2,7 +2,6 @@
 import argparse
 from pyvbap import VbapPanner
 import soundfile as sf
-import numpy as np
 import sys
 import pprint
 import os
@@ -44,9 +43,9 @@ def load_setup_file(f: str) -> dict:
         raise CanNotLoadSetupFromFile()
 
     if (
-        not "positions" in setup
-        or not "azimuth" in setup["positions"]
-        or not "elevation" in setup["positions"]
+        "positions" not in setup
+        or "azimuth" not in setup["positions"]
+        or "elevation" not in setup["positions"]
     ):
         print(
             "Setup file seems to be malformed, please refer to example file and documentation."
